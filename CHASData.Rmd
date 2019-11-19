@@ -1,0 +1,183 @@
+---
+title: "CHAS Data Output"
+author: "Brandon Wilson"
+date: "10/18/2019"
+output: word_document
+---
+
+
+```{r}
+library(dplyr)
+library(reshape2)
+library(magrittr)
+###Load CHAS data
+###Includes all needed Tables
+x <- 'Waukegan'
+```
+
+```{r}
+setwd("C:/Users/UDV-5/Documents")
+Table1 <- read.csv(file="2012thru2016-155-csv/2012thru2016-155-csv/155/Table1.csv", header=TRUE, sep=",") 
+Table2 <- read.csv(file="2012thru2016-155-csv/2012thru2016-155-csv/155/Table2.csv", header=TRUE, sep=",")
+Table3 <- read.csv(file="2012thru2016-155-csv/2012thru2016-155-csv/155/Table3.csv", header=TRUE, sep=",")
+Table7 <- read.csv(file="2012thru2016-155-csv/2012thru2016-155-csv/155/Table7.csv", header=TRUE, sep=",")
+Table8 <- read.csv(file="2012thru2016-155-csv/2012thru2016-155-csv/155/Table8.csv", header=TRUE, sep=",")
+Table9 <- read.csv(file="2012thru2016-155-csv/2012thru2016-155-csv/155/Table9.csv", header=TRUE, sep=",")
+Table10 <- read.csv(file="2012thru2016-155-csv/2012thru2016-155-csv/155/Table10.csv", header=TRUE, sep=",")
+Table13 <- read.csv(file="2012thru2016-155-csv/2012thru2016-155-csv/155/Table13.csv", header=TRUE, sep=",")
+Table16 <- read.csv(file="2012thru2016-155-csv/2012thru2016-155-csv/155/Table16.csv", header=TRUE, sep=",")
+```
+```{r}
+###Load Data Dictionaries
+setwd("C:/Users/UDV-5/Documents")
+dict_filepath <- "2012thru2016-155-csv/2012thru2016-155-csv/155/CHAS data dictionary 12-16.xlsx"
+data_dictionary1 <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 1")
+names(data_dictionary1) <-c(gsub('/', '_', names(data_dictionary1)))
+data_dictionary2 <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 2")
+names(data_dictionary2) <-c(gsub('/', '_', names(data_dictionary1)))
+data_dictionary3 <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 3")
+data_dictionary7 <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 7")
+data_dictionary8 <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 8")
+data_dictionary9 <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 9") 
+names(data_dictionary9) <-c(gsub('/', '_', names(data_dictionary9)))
+data_dictionary10 <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 10")
+data_dictionary13 <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 13")
+data_dictionary16 <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 16")
+```
+
+```{r Get filtering categories}
+TenureCategories <- unique(data_dictionary1$Tenure)
+Oneof4Categories <- unique(data_dictionary1$`1 of 4 housing problems`)
+SevereCategories <- unique(data_dictionary2$`1 of 4 severe housing problems`)
+Severity3Categories <- unique(data_dictionary3$`Housing problem severity, ordered`)
+HouseholdCategories <- unique(data_dictionary7$`Household type`)
+HAMFICategories7 <- unique(data_dictionary7$`Household income`)
+HAMFICategories <- unique(data_dictionary1$`Household income`)
+RaceCategories <- unique(data_dictionary9$Race_ethnicity)
+BurdenCategories7 <- unique(data_dictionary7$`Cost burden`)
+BurdenCategories <- unique(data_dictionary9$`Cost burden`)
+FacilitiesCategories <- unique(data_dictionary8$Facilities)
+PPRCategories <- unique(data_dictionary10$`Persons per room`)
+FamilyCategories <- unique(data_dictionary10$`Family type`)
+Oneof4_16Categories <- unique(data_dictionary16$`Housing problems`)
+ChildrenCategories <- unique(data_dictionary13$Children)
+```
+
+```{r}
+##Use to prepare for cast function
+OrganizeCHAS <- function(table, dict, x){
+  place_filter <- filter(table, grepl(x, name, fixed = TRUE))
+  dictionary_filter <- dict %>% filter(Line_Type == 'Detail')
+  d <- colnames(place_filter)
+  data <- as.data.frame(t(rbind(place_filter, d)))
+  names(data) <- c('Estimate', 'Column Name')
+  joined <- left_join(dictionary_filter, data, by = 'Column Name') %>%
+    mutate(Estimate=droplevels(Estimate)) %>% mutate_if(is.factor, as.character)
+  joined[,ncol(joined)] <- as.numeric(joined$Estimate)
+  joined
+}
+
+OrganizeCHAS3 <- function(table, dict, x){
+  place_filter <- filter(table, grepl(x, name, fixed = TRUE))
+  dictionary_filter <- dict %>% filter(Line_Type != 'Total')
+  d <- colnames(place_filter)
+  data <- as.data.frame(t(rbind(place_filter, d)))
+  names(data) <- c('Estimate', 'Column Name')
+  joined <- left_join(dictionary_filter, data, by = 'Column Name') %>%
+    mutate(Estimate=droplevels(Estimate)) %>% mutate_if(is.factor, as.character)
+  joined[,ncol(joined)] <- as.numeric(joined$Estimate)
+  joined
+}
+```
+
+```{r Number of households table}
+t7_1 <- OrganizeCHAS3(Table7, data_dictionary7, x) %>% filter(`Household type` != 'All')
+t7_2 <- dcast(t7_1, `Household type`~`Household income`, sum) %>% kable
+```
+
+```{r Housing Problems Summary Table}
+t3_1 <- OrganizeCHAS3(Table3, data_dictionary3, x)
+t3_2 <- dcast(t3_1, `Housing problem severity, ordered`~`Household income`+Tenure, sum)
+t3_3 <- tail(t3_2, 6) %>% kable
+```
+
+```{r Severe Problems Summary Table}
+t2_1 <- OrganizeCHAS3(Table2, data_dictionary2, x)
+t2_2 <- dcast(t2_1, `1 of 4 housing problems`~`Household income`+Tenure, sum)
+t2_3 <- tail(t2_2, 3) %>% kable
+```
+
+```{r Cost Burdens by Household Type -- one table for each income}
+t7_1_30 <- OrganizeCHAS3(Table7, data_dictionary7, x) %>% filter(`Cost burden`==BurdenCategories7[2])
+t7_2_30 <- dcast(t7_1_30, `Household type`~Tenure+`Household income`, sum) %>% tail(4)
+totalrow <- c('Total need by income', colSums(t7_2_30[2:11]))
+t7_3_30 <- rbind(t7_2_30, totalrow) %>% kable
+
+t7_1_50 <- OrganizeCHAS3(Table7, data_dictionary7, x) %>% filter(`Cost burden`==BurdenCategories7[4])
+t7_2_50 <- dcast(t7_1_50, `Household type`~Tenure+`Household income`, sum) %>% tail(4)
+totalrow <- c('Total need by income', colSums(t7_2_50[2:11]))
+t7_3_50 <- rbind(t7_2_50, totalrow) %>% kable
+```
+
+```{r Crowding by household type}
+t10_1 <- OrganizeCHAS3(Table10, data_dictionary10, x)
+t10_2 <- dcast(t10_1, `Family type`~Tenure+`Household income`, sum) %>% tail(3)
+totalrow <- c('Total need by income', colSums(t10_2[2:13]))
+t10_3 <- rbind(t10_2, totalrow) %>% kable
+```
+
+```{r Crowding with Children by household type}
+t13_1 <- OrganizeCHAS3(Table13, data_dictionary13, x) %>% filter(Children==ChildrenCategories[2])
+t13_2 <- dcast(t13_1, Children~Tenure+`Household income`, sum) %>% kable 
+```
+
+```{r Housing Problems by Race -- one table for each income}
+t1_1_30 <- OrganizeCHAS(Table1, data_dictionary1, x) %>% filter(`Household income`==HAMFICategories[2])
+t1_2_30 <- dcast(t1_1_30, Race_ethnicity~`1 of 4 housing problems`, sum)
+totalrow <- c('Jurisdiction as a Whole', colSums(t1_2_30[2:4]))
+t1_3_30 <- rbind(totalrow, t1_2_30) %>% kable
+
+t1_1_50 <- OrganizeCHAS(Table1, data_dictionary1, x) %>% filter(`Household income`==HAMFICategories[3])
+t1_2_50 <- dcast(t1_1_50, Race_ethnicity~`1 of 4 housing problems`, sum)
+totalrow <- c('Jurisdiction as a Whole', colSums(t1_2_50[2:4]))
+t1_3_50 <- rbind(totalrow, t1_2_50) %>% kable
+
+t1_1_80 <- OrganizeCHAS(Table1, data_dictionary1, x) %>% filter(`Household income`==HAMFICategories[4])
+t1_2_80 <- dcast(t1_1_80, Race_ethnicity~`1 of 4 housing problems`, sum)
+totalrow <- c('Jurisdiction as a Whole', colSums(t1_2_80[2:4]))
+t1_3_80 <- rbind(totalrow, t1_2_80) %>% kable
+
+t1_1_100 <- OrganizeCHAS(Table1, data_dictionary1, x) %>% filter(`Household income`==HAMFICategories[5])
+t1_2_100 <- dcast(t1_1_100, Race_ethnicity~`1 of 4 housing problems`, sum)
+totalrow <- c('Jurisdiction as a Whole', colSums(t1_2_100[2:4]))
+t1_3_100 <- rbind(totalrow, t1_2_100) %>% kable
+```
+
+```{r Severe Housing Problems by Race -- one table for each income}
+t2_1_30 <- OrganizeCHAS(Table2, data_dictionary2, x) %>% filter(`Household income`==HAMFICategories[2])
+t2_2_30 <- dcast(t2_1_30, Race_ethnicity~`1 of 4 housing problems`, sum)
+totalrow <- c('Jurisdiction as a Whole', colSums(t2_2_30[2:4]))
+t2_3_30 <- rbind(totalrow, t2_2_30) %>% kable
+
+t2_1_50 <- OrganizeCHAS(Table2, data_dictionary2, x) %>% filter(`Household income`==HAMFICategories[3])
+t2_2_50 <- dcast(t2_1_50, Race_ethnicity~`1 of 4 housing problems`, sum)
+totalrow <- c('Jurisdiction as a Whole', colSums(t2_2_50[2:4]))
+t2_3_50 <- rbind(totalrow, t2_2_50) %>% kable
+
+t2_1_80 <- OrganizeCHAS(Table2, data_dictionary2, x) %>% filter(`Household income`==HAMFICategories[4])
+t2_2_80 <- dcast(t2_1_80, Race_ethnicity~`1 of 4 housing problems`, sum)
+totalrow <- c('Jurisdiction as a Whole', colSums(t2_2_80[2:4]))
+t2_3_80 <- rbind(totalrow, t2_2_80) %>% kable
+
+t2_1_100 <- OrganizeCHAS(Table2, data_dictionary2, x) %>% filter(`Household income`==HAMFICategories[5])
+t2_2_100 <- dcast(t2_1_100, Race_ethnicity~`1 of 4 housing problems`, sum)
+totalrow <- c('Jurisdiction as a Whole', colSums(t2_2_100[2:4]))
+t2_3_100 <- rbind(totalrow, t2_2_100) %>% kable
+```
+
+```{r Race by HAMFI}
+t9_1 <- OrganizeCHAS(Table9, data_dictionary9, x)
+t9_2 <- dcast(t9_1, Race_ethnicity~`Cost burden`, sum)
+totalrow <- c('Jurisdiction as a Whole', colSums(t9_2[2:5]))
+t9_3 <- rbind(totalrow, t9_2) %>% kable
+```
