@@ -1,0 +1,332 @@
+---
+title: "CHAS Data Output"
+author: "Brandon Wilson"
+date: "10/18/2019"
+output:
+  word_document: default
+---
+
+
+```{r}
+library(knitr)
+library(dplyr)
+library(reshape2)
+library(magrittr)
+###Load CHAS data
+###Includes all needed Tables
+x <- 'Cumberland County, North Carolina'
+options(scipen = 999)
+```
+
+```{r}
+setwd("C:/Users/info/OneDrive/Desktop/Markdowns")
+Table1 <- read.csv(file="2012thru2016-050-csv/2012thru2016-050-csv/050/Table1.csv", header=TRUE, sep=",") 
+Table2 <- read.csv(file="2012thru2016-050-csv/2012thru2016-050-csv/050/Table2.csv", header=TRUE, sep=",")
+Table3 <- read.csv(file="2012thru2016-050-csv/2012thru2016-050-csv/050/Table3.csv", header=TRUE, sep=",")
+Table5 <- read.csv(file="2012thru2016-050-csv/2012thru2016-050-csv/050/Table5.csv", header=TRUE, sep=",")
+Table7 <- read.csv(file="2012thru2016-050-csv/2012thru2016-050-csv/050/Table7.csv", header=TRUE, sep=",")
+Table8 <- read.csv(file="2012thru2016-050-csv/2012thru2016-050-csv/050/Table8.csv", header=TRUE, sep=",")
+Table9 <- read.csv(file="2012thru2016-050-csv/2012thru2016-050-csv/050/Table9.csv", header=TRUE, sep=",")
+Table10 <- read.csv(file="2012thru2016-050-csv/2012thru2016-050-csv/050/Table10.csv", header=TRUE, sep=",")
+Table13 <- read.csv(file="2012thru2016-050-csv/2012thru2016-050-csv/050/Table13.csv", header=TRUE, sep=",")
+Table16 <- read.csv(file="2012thru2016-050-csv/2012thru2016-050-csv/050/Table16.csv", header=TRUE, sep=",")
+Table15A <- read.csv(file="2012thru2016-050-csv/2012thru2016-050-csv/050/Table15A.csv", header=TRUE, sep=",")
+Table15B <- read.csv(file="2012thru2016-050-csv/2012thru2016-050-csv/050/Table15B.csv", header=TRUE, sep=",")
+Table15C <- read.csv(file="2012thru2016-050-csv/2012thru2016-050-csv/050/Table15C.csv", header=TRUE, sep=",")
+```
+```{r}
+###Load Data Dictionaries
+setwd("C:/Users/info/OneDrive/Desktop/Markdowns")
+dict_filepath <- "2012thru2016-050-csv/2012thru2016-050-csv/050/CHAS data dictionary 12-16.xlsx"
+data_dictionary1 <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 1")
+names(data_dictionary1) <-c(gsub('/', '_', names(data_dictionary1)))
+data_dictionary2 <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 2")
+names(data_dictionary2) <-c(gsub('/', '_', names(data_dictionary1)))
+data_dictionary3 <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 3")
+data_dictionary5 <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 5")
+data_dictionary7 <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 7")
+data_dictionary8 <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 8")
+data_dictionary9 <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 9") 
+names(data_dictionary9) <-c(gsub('/', '_', names(data_dictionary9)))
+data_dictionary10 <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 10")
+data_dictionary13 <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 13")
+data_dictionary16 <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 16")
+data_dictionary15A <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 15A")
+data_dictionary15B <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 15B")
+data_dictionary15C <- readxl::read_xlsx(path = dict_filepath, sheet = "Table 15C")
+```
+
+```{r Get filtering categories}
+TenureCategories <- unique(data_dictionary1$Tenure)
+Oneof4Categories <- unique(data_dictionary1$`1 of 4 housing problems`)
+SevereCategories <- unique(data_dictionary2$`1 of 4 severe housing problems`)
+S2 <- c(SevereCategories[2], SevereCategories[3], SevereCategories[4])
+Severity3Categories <- unique(data_dictionary3$`Housing problem severity, ordered`)
+S32 <- c(Severity3Categories[2], Severity3Categories[3], Severity3Categories[4], Severity3Categories[5], Severity3Categories[6], Severity3Categories[7], Severity3Categories[8])
+ElderlyCategories <- unique(data_dictionary5$`Elderly occupant`)
+E2 <- c(ElderlyCategories[2], ElderlyCategories[3])
+HouseholdCategories <- unique(data_dictionary7$`Household type`)
+H2 <- c(HouseholdCategories[3], HouseholdCategories[4])
+H2_30 <- c(HouseholdCategories[3], HouseholdCategories[4], HouseholdCategories[5], HouseholdCategories[6])
+HAMFICategories7 <- unique(data_dictionary7$`Household income`)
+HAMFICategories <- unique(data_dictionary1$`Household income`)
+RaceCategories <- unique(data_dictionary9$Race_ethnicity)
+R2 <- c(RaceCategories[2], RaceCategories[3], RaceCategories[4], RaceCategories[5], RaceCategories[6], RaceCategories[7])
+BurdenCategories7 <- unique(data_dictionary7$`Cost burden`)
+BurdenCategories <- unique(data_dictionary9$`Cost burden`)
+FacilitiesCategories <- unique(data_dictionary8$Facilities)
+PPRCategories <- unique(data_dictionary10$`Persons per room`)
+FamilyCategories <- unique(data_dictionary10$`Family type`)
+F2 <- c(FamilyCategories[2], FamilyCategories[3], FamilyCategories[4])
+Oneof4_16Categories <- unique(data_dictionary16$`Housing problems`)
+ChildrenCategories <- unique(data_dictionary13$Children)
+YearCategories <- unique(data_dictionary13$`Year structure was built`)
+```
+
+```{r}
+##Use to prepare for cast function
+OrganizeCHAS <- function(table, dict, x){
+  place_filter <- filter(table, grepl(x, name, fixed = TRUE))
+  dictionary_filter <- dict %>% filter(Line_Type == 'Detail')
+  d <- colnames(place_filter)
+  data <- as.data.frame(t(rbind(place_filter, d)))
+  names(data) <- c('Estimate', 'Column Name')
+  joined <- left_join(dictionary_filter, data, by = 'Column Name') %>%
+    mutate(Estimate=droplevels(Estimate)) %>% mutate_if(is.factor, as.character)
+  joined[,ncol(joined)] <- as.numeric(joined$Estimate)
+  joined
+}
+
+OrganizeCHAS3 <- function(table, dict, x){
+  place_filter <- filter(table, grepl(x, name, fixed = TRUE))
+  dictionary_filter <- dict %>% filter(Line_Type != 'Total')
+  d <- colnames(place_filter)
+  data <- as.data.frame(t(rbind(place_filter, d)))
+  names(data) <- c('Estimate', 'Column Name')
+  joined <- left_join(dictionary_filter, data, by = 'Column Name') %>%
+    mutate(Estimate=droplevels(Estimate)) %>% mutate_if(is.factor, as.character)
+  joined[,ncol(joined)] <- as.numeric(joined$Estimate)
+  joined
+}
+```
+
+```{r Number of households table}
+t7_1 <- OrganizeCHAS3(Table7, data_dictionary7, x) %>% filter(`Household type` != 'All')
+t7_2 <- dcast(t7_1, `Household type`~`Household income`, sum)
+totalrow <- c('Total Households', colSums(t7_2[2:6]))
+t7_3 <- rbind(totalrow, t7_2 %>% slice(match(H2, `Household type`))) 
+kable(t7_3[,c(1, 6, 3, 4, 5, 2)]) 
+```
+
+```{r Number of households table part 2}
+t5_1 <- OrganizeCHAS3(Table5, data_dictionary5, x) %>% filter(`Elderly occupant` != 'All')
+t5_2 <- dcast(t5_1, `Elderly occupant`~`Household income`, sum) %>% slice(match(E2, `Elderly occupant`))
+kable(t5_2[,c(1, 6, 3, 4, 5, 2)])
+```
+
+```{r Number of households with Children}
+t13_1 <- OrganizeCHAS3(Table13, data_dictionary13, x) %>% filter(Children==ChildrenCategories[2])
+t13_2 <- dcast(t13_1, Children~`Household income`, sum)
+kable(t13_2[,c(1, 6, 3, 4, 5, 2)])
+```
+
+```{r Housing Problems Summary Table}
+t3_1 <- OrganizeCHAS3(Table3, data_dictionary3, x)
+t3_2 <- dcast(t3_1, `Housing problem severity, ordered`~`Household income`+Tenure, sum)
+t3_3 <- tail(t3_2, 6) %>% slice(match(S32, `Housing problem severity, ordered`))
+kable(t3_3[,c(1, 13, 7, 9, 11, 3, 12, 6, 8, 10, 2)])
+```
+
+```{r Severe Problems Summary Table}
+t2_1 <- OrganizeCHAS3(Table2, data_dictionary2, x)
+t2_2 <- dcast(t2_1, `1 of 4 housing problems`~`Household income`+Tenure, sum) 
+S2 <- c(t2_2$`1 of 4 housing problems`[3], t2_2$`1 of 4 housing problems`[4], t2_2$`1 of 4 housing problems`[2])
+t2_3 <- tail(t2_2, 3) %>% slice(match(S2, `1 of 4 housing problems`))
+kable(t2_3[,c(1, 13, 7, 9, 11, 3, 12, 6, 8, 10, 2)])
+```
+
+```{r Cost Burdens by Household Type -- one table for each income}
+t7_1_30 <- OrganizeCHAS3(Table7, data_dictionary7, x) %>% filter(`Cost burden`==BurdenCategories7[3])
+t7_2_30 <- dcast(t7_1_30, `Household type`~Tenure+`Household income`, sum) %>% tail(4)
+TColumn <- dcast(t7_1_30, `Household type`~Tenure, sum) %>% tail(4)
+OColumns <- t7_2_30[1:6]
+RColumns <- t7_2_30[7:11]
+t7_2_30 <- cbind(OColumns, TColumn[2], RColumns, TColumn[3])
+totalrow <- c('Total need by income', colSums(t7_2_30[2:13]))
+t7_3_30 <- rbind(t7_2_30 %>% slice(match(H2_30, `Household type`)), totalrow)
+kable(t7_3_30[,c(1, 12, 9, 10, 13, 6, 3, 4, 7)])
+```
+
+```{r cost burned by household type pt 2}
+t7_1_50 <- OrganizeCHAS3(Table7, data_dictionary7, x) %>% filter(`Cost burden`==BurdenCategories7[4])
+t7_2_50 <- dcast(t7_1_50, `Household type`~Tenure+`Household income`, sum) %>% tail(4)
+TColumn <- dcast(t7_1_50, `Household type`~Tenure, sum) %>% tail(4)
+OColumns <- t7_2_50[1:6]
+RColumns <- t7_2_50[7:11]
+t7_2_50 <- cbind(OColumns, TColumn[2], RColumns, TColumn[3])
+totalrow <- c('Total need by income', colSums(t7_2_50[2:13]))
+t7_3_50 <- rbind(t7_2_50 %>% slice(match(H2_30, `Household type`)), totalrow) 
+kable(t7_3_50[,c(1, 12, 9, 10, 13, 6, 3, 4, 7)])
+```
+
+```{r Crowding by household type}
+t10_1 <- OrganizeCHAS3(Table10, data_dictionary10, x) %>% filter(`Persons per room`==PPRCategories[3] | `Persons per room`==PPRCategories[4])
+t10_2 <- dcast(t10_1, `Family type`~Tenure+`Household income`, sum) %>% tail(3)
+TColumn <- dcast(t10_1, `Family type`~Tenure, sum) %>% tail(3)
+OColumns <- t10_2[1:7]
+RColumns <- t10_2[8:13]
+t10_2 <- cbind(OColumns, TColumn[2], RColumns, TColumn[3])
+totalrow <- c('Total need by income', colSums(t10_2[2:15]))
+t10_3 <- rbind(t10_2 %>% slice(match(F2, `Family type`)), totalrow) 
+kable(t10_3[,c(1, 14, 11, 12, 13, 15, 7, 4, 5, 6, 8)])
+```
+
+```{r Crowding with Children by household type}
+t13_1 <- OrganizeCHAS3(Table13, data_dictionary13, x) %>% filter(Children==ChildrenCategories[2])
+t13_2 <- dcast(t13_1, Children~Tenure+`Household income`, sum)
+TColumn <- dcast(t13_1, Children~Tenure, sum)
+OColumns <- t13_2[1:6]
+RColumns <- t13_2[7:11]
+t13_2 <- cbind(OColumns, TColumn[2], RColumns, TColumn[3])
+kable(t13_2[,c(1, 12, 9, 10, 11, 13, 6, 3, 4, 5, 7)])
+```
+
+```{r Percent amounts for CHAS}
+t1_1 <- OrganizeCHAS(Table1, data_dictionary1, x)
+t1_2 <- dcast(t1_1, Race_ethnicity~`1 of 4 housing problems`, sum)
+BaseRow <- rowSums(t1_2[2:4])
+TotalTotal <- as.numeric(sum(BaseRow))
+t1_3 <- cbind(BaseRow, t1_2)
+AIndianTotal <- as.numeric(t1_3[1,1])
+AsianTotal <- as.numeric(t1_3[2,1])
+BlackTotal <- as.numeric(t1_3[3,1])
+HispanicTotal <- as.numeric(t1_3[4,1])
+OtherTotal <- as.numeric(t1_3[5,1])
+PITotal <- as.numeric(t1_3[6,1])
+WhiteTotal <- as.numeric(t1_3[7,1])
+
+z <- round(WhiteTotal/TotalTotal*100,2)
+```
+
+The total number of White Households in the `r x` is `r format(WhiteTotal, big.mark=',')` households (`r round(WhiteTotal/TotalTotal*100,1)`%); the number of Black/African American Households is `r format(BlackTotal, big.mark=',')` households (`r round(BlackTotal/TotalTotal*100,1)`%); the number of American Indian and Alaska Native is `r format(AIndianTotal, big.mark=',')` households (`r round(AIndianTotal/TotalTotal*100,1)`%), the number of Asian Households is `r format(AsianTotal, big.mark=',')` households (`r round(AsianTotal/TotalTotal*100,1)`%); the number of Native Hawaiian and Other Pacific Islander is `r format(PITotal, big.mark=',')` households (`r round(PITotal/TotalTotal*100,1)`%), and the number of Hispanic Households is `r format(HispanicTotal, big.mark=',')` households (`r round(HispanicTotal/TotalTotal*100,1)`%).
+
+```{r Housing Problems by Race -- one table for each income}
+t1_1_30 <- OrganizeCHAS(Table1, data_dictionary1, x) %>% filter(`Household income`==HAMFICategories[2])
+t1_2_30 <- dcast(t1_1_30, Race_ethnicity~`1 of 4 housing problems`, sum)
+totalrow <- c('Jurisdiction as a Whole', colSums(t1_2_30[2:4]))
+t1_3_30 <- rbind(totalrow, t1_2_30)
+t1_4_30 <- rbind(totalrow, t1_2_30 %>% slice(match(R2, Race_ethnicity)))
+kable(t1_4_30[,c(1, 3, 4, 2)])
+
+t1_1_50 <- OrganizeCHAS(Table1, data_dictionary1, x) %>% filter(`Household income`==HAMFICategories[3])
+t1_2_50 <- dcast(t1_1_50, Race_ethnicity~`1 of 4 housing problems`, sum)
+totalrow <- c('Jurisdiction as a Whole', colSums(t1_2_50[2:4]))
+t1_3_50 <- rbind(totalrow, t1_2_50)
+t1_4_50 <- rbind(totalrow, t1_2_50 %>% slice(match(R2, Race_ethnicity)))
+kable(t1_4_50[,c(1, 3, 4, 2)])
+
+t1_1_80 <- OrganizeCHAS(Table1, data_dictionary1, x) %>% filter(`Household income`==HAMFICategories[4])
+t1_2_80 <- dcast(t1_1_80, Race_ethnicity~`1 of 4 housing problems`, sum)
+totalrow <- c('Jurisdiction as a Whole', colSums(t1_2_80[2:4]))
+t1_3_80 <- rbind(totalrow, t1_2_80)
+t1_4_80 <- rbind(totalrow, t1_2_80 %>% slice(match(R2, Race_ethnicity)))
+kable(t1_4_80[,c(1, 3, 4, 2)])
+
+t1_1_100 <- OrganizeCHAS(Table1, data_dictionary1, x) %>% filter(`Household income`==HAMFICategories[5])
+t1_2_100 <- dcast(t1_1_100, Race_ethnicity~`1 of 4 housing problems`, sum)
+totalrow <- c('Jurisdiction as a Whole', colSums(t1_2_100[2:4]))
+t1_3_100 <- rbind(totalrow, t1_2_100)
+t1_4_100 <- rbind(totalrow, t1_2_100 %>% slice(match(R2, Race_ethnicity)))
+kable(t1_4_100[,c(1, 3, 4, 2)])
+```
+
+In the 0-30% Area Median Income category, African American/Black households had one or more housing problems, with a disproportionate need at `r round(as.numeric(t1_3_30[4,3])/as.numeric(t1_3_30[1,3])*100,1)`%. In the 30-50% Area Median Income category, African American/Black households and Hispanic or Latino households have disproportionate need at `r round(as.numeric(t1_3_50[4,3])/as.numeric(t1_3_50[1,3])*100,1)`% and `r round(as.numeric(t1_3_50[5,3])/as.numeric(t1_3_50[1,3])*100,1)`% respectively. There are no other racial or ethnic groups with disproportionate need at other income levels.
+
+
+```{r Severe Housing Problems by Race -- one table for each income}
+t2_1_30 <- OrganizeCHAS(Table2, data_dictionary2, x) %>% filter(`Household income`==HAMFICategories[2])
+t2_2_30 <- dcast(t2_1_30, Race_ethnicity~`1 of 4 housing problems`, sum)
+totalrow <- c('Jurisdiction as a Whole', colSums(t2_2_30[2:4]))
+t2_3_30 <- rbind(totalrow, t2_2_30)
+t2_4_30 <- rbind(totalrow, t2_2_30 %>% slice(match(R2, Race_ethnicity)))
+kable(t2_4_30[,c(1, 3, 4, 2)])
+
+t2_1_50 <- OrganizeCHAS(Table2, data_dictionary2, x) %>% filter(`Household income`==HAMFICategories[3])
+t2_2_50 <- dcast(t2_1_50, Race_ethnicity~`1 of 4 housing problems`, sum)
+totalrow <- c('Jurisdiction as a Whole', colSums(t2_2_50[2:4]))
+t2_3_50 <- rbind(totalrow, t2_2_50)
+t2_4_50 <- rbind(totalrow, t2_2_50 %>% slice(match(R2, Race_ethnicity)))
+kable(t2_4_50[,c(1, 3, 4, 2)])
+
+t2_1_80 <- OrganizeCHAS(Table2, data_dictionary2, x) %>% filter(`Household income`==HAMFICategories[4])
+t2_2_80 <- dcast(t2_1_80, Race_ethnicity~`1 of 4 housing problems`, sum)
+totalrow <- c('Jurisdiction as a Whole', colSums(t2_2_80[2:4]))
+t2_3_80 <- rbind(totalrow, t2_2_80)
+t2_4_80 <- rbind(totalrow, t2_2_80 %>% slice(match(R2, Race_ethnicity)))
+kable(t2_4_80[,c(1, 3, 4, 2)])
+
+t2_1_100 <- OrganizeCHAS(Table2, data_dictionary2, x) %>% filter(`Household income`==HAMFICategories[5])
+t2_2_100 <- dcast(t2_1_100, Race_ethnicity~`1 of 4 housing problems`, sum)
+totalrow <- c('Jurisdiction as a Whole', colSums(t2_2_100[2:4]))
+t2_3_100 <- rbind(totalrow, t2_2_100)
+t2_4_100 <- rbind(totalrow, t2_2_100 %>% slice(match(R2, Race_ethnicity)))
+kable(t2_4_100[,c(1, 3, 4, 2)])
+```
+
+At all Median Income Categories except for 50-80% AMI, the African American/Black ethnic group has a disproportionate need in terms of severe housing problems. The disproportionate need is `r round(as.numeric(t2_3_30[4,3])/as.numeric(t2_3_30[1,3])*100,1)`% at 0-30% AMI, `r round(as.numeric(t2_3_50[4,3])/as.numeric(t2_3_50[1,3])*100,1)`% at 50-30% AMI, and `r round(as.numeric(t2_3_100[4,3])/as.numeric(t2_3_100[1,3])*100,1)`% at 80-100% AMI. There were no other racial or ethnic groups that disproportionately experience severe housing problems.
+
+```{r Race by HAMFI calculations}
+t9_1 <- OrganizeCHAS(Table9, data_dictionary9, x)
+t9_2 <- dcast(t9_1, Race_ethnicity~`Cost burden`, sum)
+totalrow <- c('Jurisdiction as a Whole', colSums(t9_2[2:5]))
+t9_3 <- rbind(totalrow, t9_2)
+```
+
+The greatest housing problem facing the `r x` is the lack of affordable housing and the fact that many of the City’s lower income households are paying more than 30% of their total household income on housing related costs. The following information was noted: `r format(as.numeric(t9_3[8,2]), big.mark=',')` White households were cost overburdened by 30% to 50%, and `r format(as.numeric(t9_3[8,4]), big.mark=',')` White households were severely cost over burdened by greater than 50%; `r format(as.numeric(t9_3[4,2]), big.mark=',')` Black/African American households were cost overburdened by 30% to 50%, and `r format(as.numeric(t9_3[4,4]), big.mark=',')` Black/African American households were severely cost overburdened by greater than 50%; and lastly, `r format(as.numeric(t9_3[5,2]), big.mark=',')` Hispanic households were cost overburdened by 30% to 50%, and `r format(as.numeric(t9_3[5,4]), big.mark=',')` Hispanic households were severely cost overburdened by greater than 50%.
+
+```{r Race by HAMFI table}
+t9_4 <- rbind(totalrow, t9_2 %>% slice(match(R2, Race_ethnicity)))
+kable(t9_4[,c(1, 4, 2, 3, 5)])
+```
+
+Discussion:
+
+Black/African American households were disproportionately affected by a housing cost overburden in `r x`. Black/African American households were considered to be severely cost overburdened, where they were `r round(as.numeric(t9_3[4,3])/as.numeric(t9_3[1,3])*100, 1)`% of the total cases of households that were considered cost overburdened by greater than 50%. This is more than percentage points higher than the xx% of the total number of households that the Black/African American category comprises.
+
+A total of `r format(as.numeric(t9_3[8,2]), big.mark=',')` White households were considered cost overburdened by between 30% and 50%, which is `r round(as.numeric(t9_3[8,2])/as.numeric(t9_3[1,2])*100, 1)`% of the total cases of households that were considered cost overburdened by between 30% and 50%. This number is below the xx% of the total number of households that the White category comprises. Additionally, a total of `r format(as.numeric(t9_3[5,2]), big.mark=',')` Hispanic households were considered cost overburdened by between 30% and 50%, which is `r round(as.numeric(t9_3[5,2])/as.numeric(t9_3[1,2])*100, 1)`% of the total cases of households that were considered cost overburdened by between 30% and 50%. This number is comparable to the xx% of the total number of households that the Hispanic category comprises.
+A total of `r format(as.numeric(t9_3[4,2]), big.mark=',')` Black/African American households were considered cost overburdened by between 30% and 50%, which is `r round(as.numeric(t9_3[4,2])/as.numeric(t9_3[1,2])*100, 1)`% of the total cases of households that were considered cost overburdened by between 30% and 50%. This number is slightly above the xx% of the total number of households that the Black/African American category comprises. No other racial or ethnic group has a disproportionately higher instance of cost burden than its household population. 
+
+A total of `r format(as.numeric(t9_3[4,3]), big.mark=',')` White households were considered severely cost overburdened by greater than 50%, which is `r round(as.numeric(t9_3[4,3])/as.numeric(t9_3[1,3])*100, 1)`% of the total cases of households that were considered cost overburdened by greater than 50%. This number is below the xx% of the total number of households that the White category comprises. A total of `r format(as.numeric(t9_3[5,3]), big.mark=',')` Hispanic households were considered severely cost overburdened by greater than 50%, which is `r round(as.numeric(t9_3[5,3])/as.numeric(t9_3[1,3])*100, 1)`% of the total number of households that were considered cost overburdened by greater than 50%. This number is slightly higher than the xx% of the total number of households that the Hispanic category comprises.
+
+NA-30 Disproportionately Greater Need Discussion
+
+When examining the percentage of each racial or ethnic group that have a housing problem, severe housing problem, or are housing cost overburdened, compared to that racial or ethnic group overall, a different picture presents itself. According to the 2012-2016 CHAS data,`r round(as.numeric(t9_3[8,2])/WhiteTotal*100, 1)`% of all White households, `r round(as.numeric(t9_3[4,2])/BlackTotal*100, 1)`% of Black/African American households, `r round(as.numeric(t9_3[2,2])/AIndianTotal*100, 1)`% of American Indian and Alaska Native households, `r round(as.numeric(t9_3[3,2])/AsianTotal*100, 1)`% of Asian households, and `r round(as.numeric(t9_3[5,2])/HispanicTotal*100, 1)`% of Hispanic households are cost-overburdened by 30%-50%, while `r round(as.numeric(t9_3[8,3])/WhiteTotal*100, 1)`% of White households, `r round(as.numeric(t9_3[4,3])/BlackTotal, 1)`% of Black households, `r round(as.numeric(t9_3[2,3])/AIndianTotal*100, 1)`% of American Indian and Alaska Native households, `r round(as.numeric(t9_3[3,3])/AsianTotal, 1)`% of Asian households, and `r round(as.numeric(t9_3[5,3])/HispanicTotal*100, 1)`% of Hispanic households were cost overburdened by over 50%. When examining housing problems, `r round(sum(as.numeric(t1_3_30[8,3]), as.numeric(t1_3_50[8,3]), as.numeric(t1_3_80[8,3]), as.numeric(t1_3_100[8,3]))/WhiteTotal*100,1)`% of White households, `r round(sum(as.numeric(t1_3_30[4,3]), as.numeric(t1_3_50[4,3]), as.numeric(t1_3_80[4,3]), as.numeric(t1_3_100[4,3]))/BlackTotal*100,1)`% of Black/African American households, `r round(sum(as.numeric(t1_3_30[2,3]), as.numeric(t1_3_50[2,3]), as.numeric(t1_3_80[2,3]), as.numeric(t1_3_100[2,3]))/AIndianTotal*100,1)`% of American Indian and Alaska Native households, `r round(sum(as.numeric(t1_3_30[3,3]), as.numeric(t1_3_50[3,3]), as.numeric(t1_3_80[3,3]), as.numeric(t1_3_100[3,3]))/AsianTotal*100,1)`% of Asian households, and `r round(sum(as.numeric(t1_3_30[5,3]), as.numeric(t1_3_50[5,3]), as.numeric(t1_3_80[5,3]), as.numeric(t1_3_100[5,3]))/HispanicTotal*100,1)`% of Hispanic households have a housing problem. The numbers are lower for severe housing problems. `r round(sum(as.numeric(t2_3_30[8,3]), as.numeric(t2_3_50[8,3]), as.numeric(t2_3_80[8,3]), as.numeric(t2_3_100[8,3]))/WhiteTotal*100,1)`% of White households, `r round(sum(as.numeric(t2_3_30[4,3]), as.numeric(t2_3_50[4,3]), as.numeric(t2_3_80[4,3]), as.numeric(t2_3_100[4,3]))/BlackTotal*100,1)`% of Black/African American households, `r round(sum(as.numeric(t2_3_30[2,3]), as.numeric(t2_3_50[2,3]), as.numeric(t2_3_80[2,3]), as.numeric(t2_3_100[2,3]))/AIndianTotal*100,1)`% of American Indian and Alaska Native households, `r round(sum(as.numeric(t2_3_30[3,3]), as.numeric(t2_3_50[3,3]), as.numeric(t2_3_80[3,3]), as.numeric(t2_3_100[3,3]))/AsianTotal*100,1)`% of Asian households, and `r round(sum(as.numeric(t2_3_30[5,3]), as.numeric(t2_3_50[5,3]), as.numeric(t2_3_80[5,3]), as.numeric(t2_3_100[5,3]))/HispanicTotal*100,1)`% of Hispanic households are experiencing a severe housing problem.  Overall, these numbers show that African American/Black households in `r x` are much more likely to experience a housing problem than to be cost overburdened, and that minority households in general are more likely to be cost-overburdened and have a housing problem than White households. 
+
+When comparing the housing problem numbers to the cost-overburdened numbers, it seems that cost overburdens affect all minorities, but African American/Black families are most likely to be cost overburdened or severely cost overburdened. `r round(as.numeric(t9_3[2,3])/AIndianTotal*100, 1)`% of African American/Black households are considered severely cost overburdened. African American/Black populations also have a disproportionate amount of housing problems and severe housing problems, such as overcrowding or incomplete kitchen or plumbing facilities. `r round(as.numeric(t1_3_30[4,3])/as.numeric(t1_3_30[1,3])*100,1)`% of this population at 0%-30% area median income has at least one housing problem, and `r round(as.numeric(t2_3_30[4,3])/as.numeric(t2_3_30[1,3])*100,1)`% of this population at 0%-30% area median income has at least one severe housing problem. Consultations with social service providers and housing providers support this theory, as these organizations have described the poor housing conditions in the largely Black/African American neighborhoods. Furthermore, renting is more common for the residents in the majority Black/African American neighborhoods. Rents in those areas have increased significantly while incomes have not. Thus, there is a need to provide assistance for the Black/African American neighborhoods in `r x`. 
+
+Hispanic households were also more likely to be cost overburdened. `r round(as.numeric(t9_3[5,2])/HispanicTotal*100, 1)`% of Hispanic households faced cost overburdens of 30-50% over their income, and `r round(as.numeric(t9_3[5,3])/HispanicTotal*100, 1)`% of these households faced cost overburdens over 50% of their household income.
+
+American Indian or Alaska Native households were more likely to face housing problems such as overcrowding or incomplete kitchen or plumbing facilities and cost overburden, with `r round(sum(as.numeric(t1_3_30[2,3]), as.numeric(t1_3_50[2,3]), as.numeric(t1_3_80[2,3]), as.numeric(t1_3_100[2,3]))/AIndianTotal*100,1)`% of households experiencing at least one housing problem, and `r round(sum(as.numeric(t2_3_30[2,3]), as.numeric(t2_3_50[2,3]), as.numeric(t2_3_80[2,3]), as.numeric(t2_3_100[2,3]))/AIndianTotal*100,1)`% of households experiencing at least one severe housing problem.
+
+```{r Risk of Lead Paint Hazard}
+###Need to make total row
+t13L_1 <- OrganizeCHAS3(Table13, data_dictionary13, x) %>% filter(`Year structure was built`!=YearCategories[2]) %>% na.omit
+t13L_2 <- dcast(t13L_1, Children~Tenure, sum)
+kable(t13L_2[,c(1, 2, 3)])
+```
+
+There are approximately xx (xx%) owner-occupied and xx (xx%) renter-occupied housing units that were built prior to 1980. Based on that, approximately 50% of the 36,485 older homes contain LBP hazards.
+
+The following households have housing costs that are 30% to 50% of their AMI:
+•	White households =  `r format(as.numeric(t9_3[8,2]), big.mark=',')` or `r round(as.numeric(t9_3[8,2])/WhiteTotal*100, 1)`% of households
+•	Black/African American households = `r format(as.numeric(t9_3[4,2]), big.mark=',')` or `r round(as.numeric(t9_3[4,2])/BlackTotal*100, 1)`% of households
+•	Asian households = `r format(as.numeric(t9_3[3,2]), big.mark=',')` or `r round(as.numeric(t9_3[3,2])/AsianTotal*100, 1)`% of households
+•	American Indian/Alaska Native households = `r format(as.numeric(t9_3[2,2]), big.mark=',')` or `r round(as.numeric(t9_3[2,2])/AIndianTotal*100, 1)`% of households
+•	Hispanic households = `r format(as.numeric(t9_3[5,2]), big.mark=',')` or `r round(as.numeric(t9_3[5,2])/HispanicTotal*100, 1)`% of households
+The following households have housing costs that are greater than 50% of their AMI:
+•	White households = `r format(as.numeric(t9_3[8,3]), big.mark=',')` or `r round(as.numeric(t9_3[8,3])/WhiteTotal*100, 1)`% of households
+•	Black/African American households = `r format(as.numeric(t9_3[4,3]), big.mark=',')` or `r round(as.numeric(t9_3[4,3])/BlackTotal*100, 1)`% of households
+•	Asian households = `r format(as.numeric(t9_3[3,3]), big.mark=',')` or `r round(as.numeric(t9_3[3,3])/AsianTotal*100, 1)`% of households
+•	American Indian/Alaska Native households = `r format(as.numeric(t9_3[2,3]), big.mark=',')` or `r round(as.numeric(t9_3[2,3])/AIndianTotal*100, 1)`% of households
+•	Hispanic households = `r format(as.numeric(t9_3[5,3]), big.mark=',')` or `r round(as.numeric(t9_3[5,3])/HispanicTotal*100, 1)`% of households
+When examining the percentage of each racial or ethnic group that have a housing problem, severe housing problem, or are housing cost overburdened, compared to that racial or ethnic group overall, a different picture presents itself. According to the 2012-2016 CHAS data,`r round(as.numeric(t9_3[8,2])/WhiteTotal*100, 1)`% of all White households, `r round(as.numeric(t9_3[4,2])/BlackTotal*100, 1)`% of Black/African American households, `r round(as.numeric(t9_3[2,2])/AIndianTotal*100, 1)`% of American Indian and Alaska Native households, `r round(as.numeric(t9_3[3,2])/AsianTotal*100, 1)`% of Asian households, and `r round(as.numeric(t9_3[5,2])/HispanicTotal*100, 1)`% of Hispanic households are cost-overburdened by 30%-50%, while `r round(as.numeric(t9_3[8,3])/WhiteTotal*100, 1)`% of White households, `r round(as.numeric(t9_3[4,3])/BlackTotal, 1)`% of Black households, `r round(as.numeric(t9_3[2,3])/AIndianTotal*100, 1)`% of American Indian and Alaska Native households, `r round(as.numeric(t9_3[3,3])/AsianTotal, 1)`% of Asian households, and `r round(as.numeric(t9_3[5,3])/HispanicTotal*100, 1)`% of Hispanic households were cost overburdened by over 50%. When examining housing problems, `r round(sum(as.numeric(t1_3_30[8,3]), as.numeric(t1_3_50[8,3]), as.numeric(t1_3_80[8,3]), as.numeric(t1_3_100[8,3]))/WhiteTotal*100,1)`% of White households, `r round(sum(as.numeric(t1_3_30[4,3]), as.numeric(t1_3_50[4,3]), as.numeric(t1_3_80[4,3]), as.numeric(t1_3_100[4,3]))/BlackTotal*100,1)`% of Black/African American households, `r round(sum(as.numeric(t1_3_30[2,3]), as.numeric(t1_3_50[2,3]), as.numeric(t1_3_80[2,3]), as.numeric(t1_3_100[2,3]))/AIndianTotal*100,1)`% of American Indian and Alaska Native households, `r round(sum(as.numeric(t1_3_30[3,3]), as.numeric(t1_3_50[3,3]), as.numeric(t1_3_80[3,3]), as.numeric(t1_3_100[3,3]))/AsianTotal*100,1)`% of Asian households, and `r round(sum(as.numeric(t1_3_30[5,3]), as.numeric(t1_3_50[5,3]), as.numeric(t1_3_80[5,3]), as.numeric(t1_3_100[5,3]))/HispanicTotal*100,1)`% of Hispanic households have a housing problem. The numbers are lower for severe housing problems. `r round(sum(as.numeric(t2_3_30[8,3]), as.numeric(t2_3_50[8,3]), as.numeric(t2_3_80[8,3]), as.numeric(t2_3_100[8,3]))/WhiteTotal*100,1)`% of White households, `r round(sum(as.numeric(t2_3_30[4,3]), as.numeric(t2_3_50[4,3]), as.numeric(t2_3_80[4,3]), as.numeric(t2_3_100[4,3]))/BlackTotal*100,1)`% of Black/African American households, `r round(sum(as.numeric(t2_3_30[2,3]), as.numeric(t2_3_50[2,3]), as.numeric(t2_3_80[2,3]), as.numeric(t2_3_100[2,3]))/AIndianTotal*100,1)`% of American Indian and Alaska Native households, `r round(sum(as.numeric(t2_3_30[3,3]), as.numeric(t2_3_50[3,3]), as.numeric(t2_3_80[3,3]), as.numeric(t2_3_100[3,3]))/AsianTotal*100,1)`% of Asian households, and `r round(sum(as.numeric(t2_3_30[5,3]), as.numeric(t2_3_50[5,3]), as.numeric(t2_3_80[5,3]), as.numeric(t2_3_100[5,3]))/HispanicTotal*100,1)`% of Hispanic households are experiencing a severe housing problem. Overall, these numbers show that many residents of `r x` have a severe housing problem, African American/Black households in `r x` are much more likely to experience a housing severe housing problem than to be cost overburdened, and that minority households in general are more likely to be cost-overburdened and have a housing problem than White households.  
